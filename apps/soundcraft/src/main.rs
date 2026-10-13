@@ -248,6 +248,20 @@ fn main() -> eframe::Result {
     if let Some(icon) = app_icon() {
         options.viewport = options.viewport.with_icon(icon);
     }
+    // Older Intel Macs can fail while Metal compiles wgpu's indirect-call
+    // validation compute pipeline. SoundCraft does not use indirect draws or
+    // dispatches, so disable this validation flag on Intel macOS only.
+    // WGPU_VALIDATION_INDIRECT_CALL=1 can still explicitly re-enable it.
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    if let eframe::egui_wgpu::WgpuSetup::CreateNew(create) =
+        &mut options.wgpu_options.wgpu_setup
+    {
+        create.instance_descriptor.flags = create
+            .instance_descriptor
+            .flags
+            .difference(eframe::wgpu::InstanceFlags::VALIDATION_INDIRECT_CALL)
+            .with_env();
+    }
     // Before eframe creates the wgpu instance: default Windows to DirectX 12 with FXC (see graphics.rs).
     #[cfg(target_os = "windows")]
     graphics::configure(&mut options, eframe::wgpu::Backends::from_env(), eframe::wgpu::Dx12Compiler::from_env());
